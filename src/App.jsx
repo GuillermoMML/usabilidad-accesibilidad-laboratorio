@@ -152,7 +152,7 @@ const Presentation = () => {
       content: (
         <div className="space-y-4 overflow-y-auto max-h-[50vh] pr-4 custom-scrollbar">
           <p className="text-sm text-gray-500 mb-4 sticky top-0 bg-white pb-2 z-10 border-b">
-            Jakob Nielsen (NN/g) definió estas 10 reglas generales. Son la base para evaluar cualquier interfaz.
+            Jakob Nielsen definió estas 10 reglas generales. Son la base para evaluar cualquier interfaz.
           </p>
           
           <div className="space-y-3">
