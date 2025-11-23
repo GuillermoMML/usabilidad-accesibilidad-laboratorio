@@ -9,15 +9,18 @@ import {
   Layout, 
   Users, 
   Smartphone,
-  Search,
-  Zap,
-  FileText,
   BookOpen,
   Monitor,
   Sparkles,
   MessageSquare,
   ListChecks,
-  RefreshCw
+  RefreshCw,
+  Search,
+  Zap,
+  HelpCircle,
+  FileText,
+  Settings,
+  Key
 } from 'lucide-react';
 
 const Presentation = () => {
@@ -29,13 +32,24 @@ const Presentation = () => {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [activeAiTab, setActiveAiTab] = useState('humanize'); // 'humanize' | 'audit'
   const [aiError, setAiError] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [userApiKey, setUserApiKey] = useState('');
 
-  // Clave de API (vacía para ejecución en entorno seguro)
-  const apiKey = "";
+  // Clave de API por defecto (vacía para inyección de entorno)
+  const defaultApiKey = "";
 
   const handleAiGenerate = async () => {
     if (!aiInput.trim()) return;
     
+    // Determinar qué clave usar: la del usuario o la del sistema
+    const keyToUse = userApiKey.trim() || defaultApiKey;
+
+    if (!keyToUse && userApiKey.trim() === '') {
+       // Si estamos fuera del entorno seguro y no hay clave
+       // Nota: En el entorno de preview, defaultApiKey aunque sea "" se inyecta mágicamente.
+       // Pero si falla, el usuario debe poner la suya.
+    }
+
     setIsAiLoading(true);
     setAiError(null);
     setAiOutput('');
@@ -57,7 +71,7 @@ const Presentation = () => {
       }
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${keyToUse}`,
         {
           method: 'POST',
           headers: {
@@ -70,7 +84,13 @@ const Presentation = () => {
       );
 
       if (!response.ok) {
-        throw new Error('Error al conectar con Gemini');
+        if (response.status === 403) {
+            throw new Error('Error 403: Acceso denegado. Por favor, configura tu propia API Key en el icono de engranaje.');
+        }
+        if (response.status === 400) {
+            throw new Error('Error 400: API Key inválida o faltante.');
+        }
+        throw new Error(`Error del servidor: ${response.status}`);
       }
 
       const data = await response.json();
@@ -78,8 +98,12 @@ const Presentation = () => {
       setAiOutput(text);
 
     } catch (err) {
-      setAiError("Hubo un error al consultar a la IA. Por favor, intenta de nuevo.");
+      setAiError(err.message || "Hubo un error al consultar a la IA.");
       console.error(err);
+      // Si hay error, abrimos configuración automáticamente para sugerir la clave
+      if (err.message.includes('403') || err.message.includes('400')) {
+          setShowSettings(true);
+      }
     } finally {
       setIsAiLoading(false);
     }
@@ -152,7 +176,7 @@ const Presentation = () => {
       content: (
         <div className="space-y-4 overflow-y-auto max-h-[50vh] pr-4 custom-scrollbar">
           <p className="text-sm text-gray-500 mb-4 sticky top-0 bg-white pb-2 z-10 border-b">
-            Jakob Nielsen definió estas 10 reglas generales. Son la base para evaluar cualquier interfaz.
+            Jakob Nielsen (NN/g) definió estas 10 reglas generales. Son la base para evaluar cualquier interfaz.
           </p>
           
           <div className="space-y-3">
@@ -263,8 +287,43 @@ const Presentation = () => {
       title: 'Laboratorio de IA ✨',
       subtitle: 'Asistente de UX y Accesibilidad en vivo',
       content: (
-        <div className="flex flex-col h-full">
-          <div className="flex space-x-2 mb-6 bg-gray-100 p-1 rounded-lg self-center">
+        <div className="flex flex-col h-full relative">
+          
+          {/* Settings Toggle */}
+          <div className="absolute right-0 top-[-30px] md:top-0">
+             <button 
+                onClick={() => setShowSettings(!showSettings)}
+                className="flex items-center space-x-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+             >
+                <Settings size={14} />
+                <span>Configuración API</span>
+             </button>
+          </div>
+
+          {/* Settings Panel */}
+          {showSettings && (
+             <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg animate-fadeIn text-sm">
+                <div className="flex items-start justify-between mb-2">
+                    <h5 className="font-bold text-gray-700 flex items-center">
+                        <Key size={16} className="mr-2 text-indigo-500"/>
+                        Configurar Gemini API Key
+                    </h5>
+                    <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+                <p className="text-xs text-gray-500 mb-2">
+                   Si ves un error 403, necesitas tu propia clave. Consigue una gratis en <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">Google AI Studio</a>.
+                </p>
+                <input 
+                   type="password" 
+                   placeholder="Pega tu API Key aquí (comienza con AIza...)" 
+                   value={userApiKey}
+                   onChange={(e) => setUserApiKey(e.target.value)}
+                   className="w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 outline-none"
+                />
+             </div>
+          )}
+
+          <div className="flex space-x-2 mb-6 bg-gray-100 p-1 rounded-lg self-center mt-2">
             <button
               onClick={() => { setActiveAiTab('humanize'); setAiOutput(''); setAiInput(''); }}
               className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${activeAiTab === 'humanize' ? 'bg-white shadow-sm text-indigo-600 font-bold' : 'text-gray-500 hover:text-gray-700'}`}
@@ -343,7 +402,15 @@ const Presentation = () => {
               {aiError && (
                 <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center">
                   <AlertTriangle size={16} className="mr-2 flex-shrink-0" />
-                  {aiError}
+                  <span className="flex-grow">{aiError}</span>
+                  {(aiError.includes('403') || aiError.includes('400')) && (
+                      <button 
+                        onClick={() => setShowSettings(true)}
+                        className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"
+                      >
+                        Configurar
+                      </button>
+                  )}
                 </div>
               )}
             </div>
@@ -381,6 +448,7 @@ const Presentation = () => {
               </div>
             </div>
           </div>
+          <p className="text-sm text-gray-500 mt-8">Profesor: Guillermo Mauro Marion López</p>
         </div>
       )
     }
@@ -397,8 +465,8 @@ const Presentation = () => {
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Prevent slide navigation if user is typing in the textarea
-      if (document.activeElement.tagName === 'TEXTAREA') return;
+      // Prevent slide navigation if user is typing in the textarea or input
+      if (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT') return;
 
       if (e.key === 'ArrowRight') nextSlide();
       if (e.key === 'ArrowLeft') prevSlide();
@@ -408,20 +476,20 @@ const Presentation = () => {
   }, [currentSlide]);
 
   return (
-    <div className="h-screen w-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-slate-800 w-100">
-      <div className="max-w-4xl  bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-[700px]">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-slate-800">
+      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-[700px]">
         
         {/* Header / Progress Bar */}
-        <div className=" bg-slate-900 text-white p-4 flex justify-between items-center">
+        <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <BookOpen size={20} className="text-blue-400" />
             <span className="font-bold tracking-wider text-sm md:text-base">MÓDULO UX/UI</span>
           </div>
-          <div className="flex space-x-1 ">
+          <div className="flex space-x-1">
             {slides.map((_, idx) => (
               <div 
                 key={idx}
-                className={` h-2 rounded-full transition-all duration-300 ${idx === currentSlide ? 'w-8 bg-blue-500' : 'w-2 bg-slate-700'}`}
+                className={`h-2 rounded-full transition-all duration-300 ${idx === currentSlide ? 'w-8 bg-blue-500' : 'w-2 bg-slate-700'}`}
               />
             ))}
           </div>
@@ -431,7 +499,7 @@ const Presentation = () => {
         </div>
 
         {/* Slide Content */}
-        <div className="flex-grow p-8 md:p-12 flex flex-col relative overflow-y-auto min-w-[896px]">
+        <div className="flex-grow p-8 md:p-12 flex flex-col relative overflow-y-auto">
           <div className="mb-6">
             <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2 transition-all duration-300 ease-in-out">
               {slides[currentSlide].title}
@@ -440,11 +508,10 @@ const Presentation = () => {
               {slides[currentSlide].subtitle}
             </h2>
           </div>
-                  
-        <div className="flex-grow animate-fadeIn h-full flex flex-col ">
-          {slides[currentSlide].content}
-        </div>
-
+          
+          <div className="flex-grow animate-fadeIn h-full flex flex-col">
+            {slides[currentSlide].content}
+          </div>
         </div>
 
         {/* Footer Navigation */}
@@ -480,6 +547,21 @@ const Presentation = () => {
         }
         .animate-fadeIn {
           animation: fadeIn 0.5s ease-out forwards;
+        }
+        /* Custom scrollbar for heuristics list */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
         }
       `}</style>
     </div>
