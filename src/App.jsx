@@ -9,6 +9,9 @@ import {
   Layout, 
   Users, 
   Smartphone,
+  Search,
+  Zap,
+  FileText,
   BookOpen,
   Monitor,
   Sparkles,
@@ -145,26 +148,33 @@ const Presentation = () => {
     {
       id: 'heuristics',
       title: 'Las 10 Heurísticas de Nielsen',
-      subtitle: 'La "Biblia" de la Usabilidad (Resumen)',
+      subtitle: 'Principios generales para el diseño de interacción',
       content: (
-        <div className="space-y-4 overflow-y-auto max-h-[50vh] pr-2">
-          <p className="text-sm text-gray-500 mb-4">Jakob Nielsen definió estas reglas generales en los 90, y siguen vigentes.</p>
+        <div className="space-y-4 overflow-y-auto max-h-[50vh] pr-4 custom-scrollbar">
+          <p className="text-sm text-gray-500 mb-4 sticky top-0 bg-white pb-2 z-10 border-b">
+            Jakob Nielsen (NN/g) definió estas 10 reglas generales. Son la base para evaluar cualquier interfaz.
+          </p>
           
           <div className="space-y-3">
             {[
-              { title: "1. Visibilidad del estado", desc: "El sistema siempre debe informar qué está pasando (ej. spinners de carga).", icon: <Eye size={20} /> },
-              { title: "2. Relación con el mundo real", desc: "Habla el lenguaje del usuario, no 'Error 404', sino 'Página no encontrada'.", icon: <Users size={20} /> },
-              { title: "3. Control y libertad", desc: "Dale al usuario una 'salida de emergencia' (Deshacer/Rehacer).", icon: <Layout size={20} /> },
-              { title: "4. Consistencia y estándares", desc: "No reinventes la rueda. Si un botón parece un botón, debe actuar como tal.", icon: <CheckCircle size={20} /> },
-              { title: "5. Prevención de errores", desc: "Mejor que un buen mensaje de error es un diseño que evite que el error ocurra.", icon: <AlertTriangle size={20} /> }
+              { title: "1. Visibilidad del estado", desc: "El usuario siempre debe saber qué pasa (ej. barra de carga).", icon: <Eye size={20} /> },
+              { title: "2. Relación con el mundo real", desc: "Habla el lenguaje del usuario, no códigos de sistema.", icon: <Users size={20} /> },
+              { title: "3. Control y libertad", desc: "Dale una 'salida de emergencia' (Deshacer/Rehacer).", icon: <Layout size={20} /> },
+              { title: "4. Consistencia y estándares", desc: "No reinventes convenciones establecidas (ej. iconos estándar).", icon: <CheckCircle size={20} /> },
+              { title: "5. Prevención de errores", desc: "Mejor evitar el error que mostrar un mensaje de error.", icon: <AlertTriangle size={20} /> },
+              { title: "6. Reconocimiento antes que recuerdo", desc: "Haz visibles las opciones. No obligues a memorizar.", icon: <Search size={20} /> },
+              { title: "7. Flexibilidad y eficiencia", desc: "Atajos para expertos (Accelerators) y simplicidad para novatos.", icon: <Zap size={20} /> },
+              { title: "8. Estética y diseño minimalista", desc: "No incluyas información irrelevante que compita con lo importante.", icon: <Sparkles size={20} /> },
+              { title: "9. Diagnóstico y recuperación de errores", desc: "Mensajes de error claros, en lenguaje llano y con solución.", icon: <RefreshCw size={20} /> },
+              { title: "10. Ayuda y documentación", desc: "Aunque es mejor no necesitarla, debe ser fácil de buscar si hace falta.", icon: <FileText size={20} /> }
             ].map((item, idx) => (
-              <div key={idx} className="flex items-start p-3 bg-white border border-gray-200 rounded-lg">
-                <div className="bg-indigo-100 p-2 rounded-full mr-3 mt-1 text-indigo-700">
+              <div key={idx} className="flex items-start p-3 bg-white border border-gray-200 rounded-lg hover:bg-slate-50 transition-colors">
+                <div className="bg-indigo-100 p-2 rounded-full mr-3 mt-1 text-indigo-700 flex-shrink-0">
                   {item.icon}
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-800">{item.title}</h4>
-                  <p className="text-sm text-gray-600">{item.desc}</p>
+                  <h4 className="font-bold text-gray-800 text-sm">{item.title}</h4>
+                  <p className="text-xs text-gray-600 mt-1">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -371,7 +381,6 @@ const Presentation = () => {
               </div>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-8">Profesor: IA Gemini | Ciclo Superior Desarrollo de Software</p>
         </div>
       )
     }
@@ -400,19 +409,19 @@ const Presentation = () => {
 
   return (
     <div className="h-screen w-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-slate-800 w-100">
-      <div className="max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-[700px]">
+      <div className="max-w-4xl  bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-[700px]">
         
         {/* Header / Progress Bar */}
-        <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
+        <div className=" bg-slate-900 text-white p-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <BookOpen size={20} className="text-blue-400" />
             <span className="font-bold tracking-wider text-sm md:text-base">MÓDULO UX/UI</span>
           </div>
-          <div className="flex space-x-1">
+          <div className="flex space-x-1 ">
             {slides.map((_, idx) => (
               <div 
                 key={idx}
-                className={`h-2 rounded-full transition-all duration-300 ${idx === currentSlide ? 'w-8 bg-blue-500' : 'w-2 bg-slate-700'}`}
+                className={` h-2 rounded-full transition-all duration-300 ${idx === currentSlide ? 'w-8 bg-blue-500' : 'w-2 bg-slate-700'}`}
               />
             ))}
           </div>
@@ -422,7 +431,7 @@ const Presentation = () => {
         </div>
 
         {/* Slide Content */}
-        <div className="flex-grow p-8 md:p-12 flex flex-col relative overflow-y-auto">
+        <div className="flex-grow p-8 md:p-12 flex flex-col relative overflow-y-auto min-w-[896px]">
           <div className="mb-6">
             <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2 transition-all duration-300 ease-in-out">
               {slides[currentSlide].title}
@@ -431,10 +440,11 @@ const Presentation = () => {
               {slides[currentSlide].subtitle}
             </h2>
           </div>
-          
-          <div className="flex-grow animate-fadeIn h-full flex flex-col">
-            {slides[currentSlide].content}
-          </div>
+                  
+        <div className="flex-grow animate-fadeIn h-full flex flex-col ">
+          {slides[currentSlide].content}
+        </div>
+
         </div>
 
         {/* Footer Navigation */}
