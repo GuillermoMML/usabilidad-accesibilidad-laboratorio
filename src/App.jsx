@@ -399,8 +399,8 @@ const Presentation = () => {
   }, [currentSlide]);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-slate-800 w-100">
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-[700px]">
+    <div className="h-screen w-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-slate-800 w-100">
+      <div className="max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col min-h-[700px]">
         
         {/* Header / Progress Bar */}
         <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
