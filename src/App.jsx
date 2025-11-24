@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { 
   ChevronRight, 
   ChevronLeft, 
@@ -20,12 +21,17 @@ import {
   HelpCircle,
   FileText,
   Settings,
-  Key
+  Key,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 const Presentation = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   
+  // Estado para la expansión de heurísticas (Acordeón)
+  const [expandedHeuristic, setExpandedHeuristic] = useState(null);
+
   // Estados para la funcionalidad de IA
   const [aiInput, setAiInput] = useState('');
   const [aiOutput, setAiOutput] = useState('');
@@ -38,17 +44,14 @@ const Presentation = () => {
   // Clave de API por defecto (vacía para inyección de entorno)
   const defaultApiKey = "";
 
+  const toggleHeuristic = (index) => {
+    setExpandedHeuristic(expandedHeuristic === index ? null : index);
+  };
+
   const handleAiGenerate = async () => {
     if (!aiInput.trim()) return;
     
-    // Determinar qué clave usar: la del usuario o la del sistema
     const keyToUse = userApiKey.trim() || defaultApiKey;
-
-    if (!keyToUse && userApiKey.trim() === '') {
-       // Si estamos fuera del entorno seguro y no hay clave
-       // Nota: En el entorno de preview, defaultApiKey aunque sea "" se inyecta mágicamente.
-       // Pero si falla, el usuario debe poner la suya.
-    }
 
     setIsAiLoading(true);
     setAiError(null);
@@ -57,57 +60,139 @@ const Presentation = () => {
     try {
       let prompt = "";
       if (activeAiTab === 'humanize') {
-        prompt = `Actúa como un experto en UX Writing. Tu tarea es reescribir el siguiente mensaje de error técnico para que sea amigable, claro y útil para un usuario final sin conocimientos técnicos. Aplica la heurística de "Relación entre el sistema y el mundo real".
-        
-        Mensaje técnico original: "${aiInput}"
-        
-        Genera solo el nuevo mensaje y una brevísima explicación de por qué es mejor.`;
+        prompt = `Actúa como un experto en UX Writing. Reescribe este mensaje de error técnico para que sea amigable y claro para un usuario final. Usa formato Markdown (negritas, listas si es necesario).
+        Mensaje original: "${aiInput}"`;
       } else {
-        prompt = `Actúa como un auditor de Accesibilidad Web (WCAG). Genera una lista de verificación (checklist) concisa de 3 a 5 puntos críticos que debo verificar para asegurar que el siguiente componente sea accesible.
-        
-        Componente a analizar: "${aiInput}"
-        
-        Formato: Lista con viñetas. Sé directo y práctico.`;
+        prompt = `Actúa como un auditor WCAG. Dame un checklist de 3 puntos críticos de accesibilidad para: "${aiInput}". Usa formato Markdown (listas, negritas) y bien formateado.`;
       }
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${keyToUse}`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-          }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
         }
       );
 
       if (!response.ok) {
-        if (response.status === 403) {
-            throw new Error('Error 403: Acceso denegado. Por favor, configura tu propia API Key en el icono de engranaje.');
-        }
-        if (response.status === 400) {
-            throw new Error('Error 400: API Key inválida o faltante.');
-        }
-        throw new Error(`Error del servidor: ${response.status}`);
+        if (response.status === 403) throw new Error('Error 403: Acceso denegado. Configura tu API Key.');
+        throw new Error(`Error: ${response.status}`);
       }
 
       const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "No se pudo generar respuesta.";
-      setAiOutput(text);
+      setAiOutput(data.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta.");
 
     } catch (err) {
-      setAiError(err.message || "Hubo un error al consultar a la IA.");
-      console.error(err);
-      // Si hay error, abrimos configuración automáticamente para sugerir la clave
-      if (err.message.includes('403') || err.message.includes('400')) {
-          setShowSettings(true);
-      }
+      setAiError(err.message);
+      if (err.message.includes('403')) setShowSettings(true);
     } finally {
       setIsAiLoading(false);
     }
   };
+
+  const heuristicsData = [
+    { 
+      title: "1. Visibilidad del estado", 
+      icon: <Eye size={20} />,
+      desc: "El usuario siempre debe saber qué pasa.",
+      examples: [
+        "🛒 E-commerce: 'Paso 2 de 3: Datos de envío'.",
+        "🔋 Hardware: Icono de batería cambiando de verde a rojo.",
+        "⏳ Carga: Spinner o barra de progreso al subir un archivo."
+      ]
+    },
+    { 
+      title: "2. Relación con el mundo real", 
+      icon: <Users size={20} />,
+      desc: "Habla el lenguaje del usuario, no códigos.",
+      examples: [
+        "🗑️ Metáfora: Icono de 'Papelera' para borrar archivos.",
+        "💳 Tarjetas: El formulario de tarjeta de crédito imita la tarjeta física.",
+        "❌ Malo: 'Error System.NullReference' (¿Qué significa?)."
+      ]
+    },
+    { 
+      title: "3. Control y libertad", 
+      icon: <Layout size={20} />,
+      desc: "Salidas de emergencia para errores.",
+      examples: [
+        "↩️ Deshacer: 'Ctrl+Z' en editores de texto.",
+        "🗑️ Gmail: Mensaje 'Deshacer envío' justo después de enviar.",
+        "🚪 Modal: Botón claro de 'X' o 'Cancelar' siempre visible."
+      ]
+    },
+    { 
+      title: "4. Consistencia y estándares", 
+      icon: <CheckCircle size={20} />,
+      desc: "Sigue las convenciones establecidas.",
+      examples: [
+        "🔴 Colores: Rojo siempre para 'Stop', 'Borrar' o 'Error'.",
+        "📍 Ubicación: Logo arriba a la izquierda lleva a Inicio.",
+        "⌨️ Atajos: Ctrl+C siempre copia, no inventes otro."
+      ]
+    },
+    { 
+      title: "5. Prevención de errores", 
+      icon: <AlertTriangle size={20} />,
+      desc: "Diseño que evita que el fallo ocurra.",
+      examples: [
+        "📅 Fechas: Selector de calendario evita formatos inválidos (DD/MM vs MM/DD).",
+        "🔍 Google: 'Quizás quisiste decir...' si escribes mal.",
+        "📎 Adjuntos: Aviso 'Mencionaste adjunto pero no hay archivo' en Gmail."
+      ]
+    },
+    { 
+      title: "6. Reconocimiento antes que recuerdo", 
+      icon: <Search size={20} />,
+      desc: "Haz visibles las opciones.",
+      examples: [
+        "📝 Fuentes: Ver la previsualización de la fuente en el menú desplegable.",
+        "🛍️ Recientes: Mostrar 'Visto recientemente' en tiendas.",
+        "🔎 Búsqueda: Historial visible al hacer clic en la barra de búsqueda."
+      ]
+    },
+    { 
+      title: "7. Flexibilidad y eficiencia", 
+      icon: <Zap size={20} />,
+      desc: "Atajos para expertos, sencillez para novatos.",
+      examples: [
+        "📸 Instagram: Doble tap para like (atajo) vs botón corazón.",
+        "🖥️ Excel: Macros o atajos de teclado para usuarios avanzados.",
+        "🎨 Personalización: Poder ordenar el dashboard a tu gusto."
+      ]
+    },
+    { 
+      title: "8. Estética y diseño minimalista", 
+      icon: <Sparkles size={20} />,
+      desc: "Menos es más. Solo información relevante.",
+      examples: [
+        "🔍 Google: Página de inicio limpia, solo la barra de búsqueda.",
+        "📄 Formulario: Pedir solo datos esenciales (quitar 'Fax' o 'Segundo Apellido').",
+        "📱 Móvil: Ocultar menús secundarios en un icono 'hamburguesa'."
+      ]
+    },
+    { 
+      title: "9. Diagnóstico y recuperación", 
+      icon: <RefreshCw size={20} />,
+      desc: "Errores claros con solución.",
+      examples: [
+        "🚫 404: 'Página no encontrada. Prueba buscando aquí [Barra]'.",
+        "🔒 Login: 'Contraseña incorrecta. ¿Olvidaste tu contraseña?'.",
+        "📶 Conexión: 'Sin internet. Reintentando en 5s...'."
+      ]
+    },
+    { 
+      title: "10. Ayuda y documentación", 
+      icon: <FileText size={20} />,
+      desc: "Fácil de buscar y centrada en tareas.",
+      examples: [
+        "💡 Onboarding: Pequeño tour guiado al abrir la app por primera vez.",
+        "❓ Tooltips: Iconos '?' explicativos al lado de campos complejos.",
+        "📚 Chatbot: Ayuda contextual rápida sin salir de la página."
+      ]
+    }
+  ];
 
   const slides = [
     {
@@ -125,11 +210,15 @@ const Presentation = () => {
             Bienvenidos, futuros desarrolladores. Hoy no hablaremos de código backend ni de bases de datos.
             Hablaremos de <strong>humanos</strong>.
           </p>
-          <p className="text-lg text-gray-600">
-            "La usabilidad es como el aire: solo notas que falta cuando te estás asfixiando."
-          </p>
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200 inline-block">
-            <span className="font-semibold text-gray-800">Objetivo de la sesión:</span> Entender por qué una app que funciona técnicamente puede fallar en el mercado si no es usable.
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+            <div className="p-4 bg-orange-50 rounded-lg border border-orange-100">
+               <h3 className="font-bold text-orange-800 mb-2">Objetivo 1: Usabilidad</h3>
+               <p className="text-sm text-gray-600">Que el usuario no tenga que pensar para usar tu app.</p>
+            </div>
+            <div className="p-4 bg-teal-50 rounded-lg border border-teal-100">
+               <h3 className="font-bold text-teal-800 mb-2">Objetivo 2: Accesibilidad</h3>
+               <p className="text-sm text-gray-600">Que nadie se quede fuera, independientemente de sus capacidades.</p>
+            </div>
           </div>
         </div>
       )
@@ -137,32 +226,41 @@ const Presentation = () => {
     {
       id: 'definition',
       title: '¿Qué es la Usabilidad?',
-      subtitle: 'ISO 9241-11',
+      subtitle: 'ISO 9241-11: Eficacia, Eficiencia, Satisfacción',
       content: (
         <div className="space-y-8">
           <p className="text-lg text-gray-700">
-            Según la norma ISO, la usabilidad se define por tres pilares fundamentales en un contexto de uso específico:
+            Según la norma ISO, la usabilidad se define por tres pilares. Veamos ejemplos:
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-green-50 p-6 rounded-xl border border-green-100 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex flex-col items-center text-center">
                 <CheckCircle className="text-green-600 mb-3" size={32} />
                 <h3 className="text-xl font-bold text-gray-800 mb-2">Eficacia</h3>
-                <p className="text-sm text-gray-600">¿El usuario puede completar la tarea y alcanzar su objetivo con exactitud?</p>
+                <p className="text-sm text-gray-600 italic mb-2">"Lo logro hacer"</p>
+                <div className="text-xs text-left w-full bg-white p-2 rounded border border-green-200 text-gray-500">
+                  Ej: Lograr comprar una entrada de cine sin que la app se cuelgue o me cobre doble.
+                </div>
               </div>
             </div>
             <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex flex-col items-center text-center">
                 <MousePointer className="text-blue-600 mb-3" size={32} />
                 <h3 className="text-xl font-bold text-gray-800 mb-2">Eficiencia</h3>
-                <p className="text-sm text-gray-600">¿Cuántos recursos (tiempo, clics, esfuerzo mental) gasta el usuario para lograrlo?</p>
+                <p className="text-sm text-gray-600 italic mb-2">"Lo hago rápido"</p>
+                <div className="text-xs text-left w-full bg-white p-2 rounded border border-blue-200 text-gray-500">
+                  Ej: Comprar esa entrada en 3 clics gracias a "Recordar mis datos" vs escribir todo de nuevo.
+                </div>
               </div>
             </div>
             <div className="bg-purple-50 p-6 rounded-xl border border-purple-100 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex flex-col items-center text-center">
                 <Users className="text-purple-600 mb-3" size={32} />
                 <h3 className="text-xl font-bold text-gray-800 mb-2">Satisfacción</h3>
-                <p className="text-sm text-gray-600">¿La experiencia es libre de incomodidad y genera una actitud positiva?</p>
+                <p className="text-sm text-gray-600 italic mb-2">"Me siento bien"</p>
+                <div className="text-xs text-left w-full bg-white p-2 rounded border border-purple-200 text-gray-500">
+                  Ej: Que la confirmación sea visualmente agradable y me dé seguridad de la compra.
+                </div>
               </div>
             </div>
           </div>
@@ -172,34 +270,47 @@ const Presentation = () => {
     {
       id: 'heuristics',
       title: 'Las 10 Heurísticas de Nielsen',
-      subtitle: 'Principios generales para el diseño de interacción',
+      subtitle: 'Haz clic para ver ejemplos prácticos',
       content: (
-        <div className="space-y-4 overflow-y-auto max-h-[50vh] pr-4 custom-scrollbar">
-          <p className="text-sm text-gray-500 mb-4 sticky top-0 bg-white pb-2 z-10 border-b">
-            Jakob Nielsen (NN/g) definió estas 10 reglas generales. Son la base para evaluar cualquier interfaz.
+        <div className="h-full flex flex-col">
+          <p className="text-sm text-gray-500 mb-2">
+             Estas reglas aplican a todo: web, apps móviles, cajeros automáticos, incluso microondas.
           </p>
-          
-          <div className="space-y-3">
-            {[
-              { title: "1. Visibilidad del estado", desc: "El usuario siempre debe saber qué pasa (ej. barra de carga).", icon: <Eye size={20} /> },
-              { title: "2. Relación con el mundo real", desc: "Habla el lenguaje del usuario, no códigos de sistema.", icon: <Users size={20} /> },
-              { title: "3. Control y libertad", desc: "Dale una 'salida de emergencia' (Deshacer/Rehacer).", icon: <Layout size={20} /> },
-              { title: "4. Consistencia y estándares", desc: "No reinventes convenciones establecidas (ej. iconos estándar).", icon: <CheckCircle size={20} /> },
-              { title: "5. Prevención de errores", desc: "Mejor evitar el error que mostrar un mensaje de error.", icon: <AlertTriangle size={20} /> },
-              { title: "6. Reconocimiento antes que recuerdo", desc: "Haz visibles las opciones. No obligues a memorizar.", icon: <Search size={20} /> },
-              { title: "7. Flexibilidad y eficiencia", desc: "Atajos para expertos (Accelerators) y simplicidad para novatos.", icon: <Zap size={20} /> },
-              { title: "8. Estética y diseño minimalista", desc: "No incluyas información irrelevante que compita con lo importante.", icon: <Sparkles size={20} /> },
-              { title: "9. Diagnóstico y recuperación de errores", desc: "Mensajes de error claros, en lenguaje llano y con solución.", icon: <RefreshCw size={20} /> },
-              { title: "10. Ayuda y documentación", desc: "Aunque es mejor no necesitarla, debe ser fácil de buscar si hace falta.", icon: <FileText size={20} /> }
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-start p-3 bg-white border border-gray-200 rounded-lg hover:bg-slate-50 transition-colors">
-                <div className="bg-indigo-100 p-2 rounded-full mr-3 mt-1 text-indigo-700 flex-shrink-0">
-                  {item.icon}
-                </div>
-                <div>
-                  <h4 className="font-bold text-gray-800 text-sm">{item.title}</h4>
-                  <p className="text-xs text-gray-600 mt-1">{item.desc}</p>
-                </div>
+          <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar space-y-2 pb-4">
+            {heuristicsData.map((item, idx) => (
+              <div 
+                key={idx} 
+                className={`border rounded-lg transition-all duration-200 ${expandedHeuristic === idx ? 'bg-indigo-50 border-indigo-200 shadow-sm' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+              >
+                <button 
+                  onClick={() => toggleHeuristic(idx)}
+                  className="w-full flex items-center justify-between p-3 text-left focus:outline-none"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-2 rounded-full ${expandedHeuristic === idx ? 'bg-indigo-200 text-indigo-800' : 'bg-gray-100 text-gray-500'}`}>
+                      {item.icon}
+                    </div>
+                    <div>
+                      <h4 className={`font-bold text-sm ${expandedHeuristic === idx ? 'text-indigo-900' : 'text-gray-700'}`}>{item.title}</h4>
+                      {expandedHeuristic !== idx && <p className="text-xs text-gray-500 truncate max-w-[200px] sm:max-w-md">{item.desc}</p>}
+                    </div>
+                  </div>
+                  {expandedHeuristic === idx ? <ChevronUp size={18} className="text-indigo-500"/> : <ChevronDown size={18} className="text-gray-400"/>}
+                </button>
+                
+                {expandedHeuristic === idx && (
+                  <div className="px-4 pb-4 pt-0 animate-fadeIn">
+                    <p className="text-sm text-indigo-700 font-medium mb-2">{item.desc}</p>
+                    <div className="space-y-2">
+                      {item.examples.map((ex, i) => (
+                        <div key={i} className="flex items-start text-xs text-gray-700 bg-white p-2 rounded border border-indigo-100">
+                          <span className="mr-2 mt-0.5">•</span>
+                          <span>{ex}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -209,36 +320,60 @@ const Presentation = () => {
     {
       id: 'accessibility',
       title: 'Accesibilidad (a11y)',
-      subtitle: 'Diseño para TODOS',
+      subtitle: 'Ejemplos para los 4 Principios (POUR)',
       content: (
-        <div className="space-y-6">
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-            <p className="text-gray-700 italic">
-              "La accesibilidad es esencial para desarrolladores con discapacidades, pero útil para todos."
-            </p>
-          </div>
-          
-          <h3 className="font-bold text-gray-800 text-lg">Principios POUR (WCAG):</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 bg-white border border-gray-200 rounded shadow-sm">
-              <span className="text-indigo-600 font-black text-xl block mb-1">P</span>
-              <span className="font-bold text-gray-800">Perceptible</span>
-              <p className="text-xs text-gray-500 mt-1">La información no puede ser invisible a los sentidos (ej. texto alternativo en imágenes).</p>
+        <div className="space-y-4 overflow-y-auto h-full pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-white border-l-4 border-indigo-500 rounded shadow-sm">
+              <div className="flex items-center mb-2">
+                 <span className="text-indigo-600 font-black text-xl mr-2">P</span>
+                 <h4 className="font-bold text-gray-800">Perceptible</h4>
+              </div>
+              <p className="text-xs text-gray-500 mb-3 border-b pb-2">"Puedo recibir la información (verla, oírla, tocarla)"</p>
+              <ul className="text-xs space-y-2 text-gray-700">
+                 <li>👁️ <strong>Ceguera:</strong> Texto alternativo en imágenes para lectores de pantalla.</li>
+                 <li>🔇 <strong>Sordera:</strong> Subtítulos (Closed Captions) en vídeos.</li>
+                 <li>👴 <strong>Vista cansada:</strong> Texto redimensionable sin romperse.</li>
+              </ul>
             </div>
-            <div className="p-4 bg-white border border-gray-200 rounded shadow-sm">
-              <span className="text-indigo-600 font-black text-xl block mb-1">O</span>
-              <span className="font-bold text-gray-800">Operable</span>
-              <p className="text-xs text-gray-500 mt-1">La interfaz debe poder usarse (ej. navegación solo con teclado).</p>
+
+            <div className="p-4 bg-white border-l-4 border-purple-500 rounded shadow-sm">
+              <div className="flex items-center mb-2">
+                 <span className="text-purple-600 font-black text-xl mr-2">O</span>
+                 <h4 className="font-bold text-gray-800">Operable</h4>
+              </div>
+              <p className="text-xs text-gray-500 mb-3 border-b pb-2">"Puedo interactuar con la interfaz"</p>
+              <ul className="text-xs space-y-2 text-gray-700">
+                 <li>⌨️ <strong>Motor (Parkinson):</strong> Botones grandes y separación suficiente.</li>
+                 <li>🖱️ <strong>Sin ratón:</strong> Toda la web navegable con TAB y ENTER.</li>
+                 <li>⚡ <strong>Epilepsia:</strong> Evitar parpadeos rápidos ({'>'}3 veces/seg).</li>
+              </ul>
             </div>
-            <div className="p-4 bg-white border border-gray-200 rounded shadow-sm">
-              <span className="text-indigo-600 font-black text-xl block mb-1">U</span>
-              <span className="font-bold text-gray-800">Comprensible</span>
-              <p className="text-xs text-gray-500 mt-1">Información y operaciones claras (ej. formularios predecibles).</p>
+
+            <div className="p-4 bg-white border-l-4 border-blue-500 rounded shadow-sm">
+              <div className="flex items-center mb-2">
+                 <span className="text-blue-600 font-black text-xl mr-2">U</span>
+                 <h4 className="font-bold text-gray-800">Comprensible</h4>
+              </div>
+              <p className="text-xs text-gray-500 mb-3 border-b pb-2">"Entiendo cómo funciona y qué dice"</p>
+              <ul className="text-xs space-y-2 text-gray-700">
+                 <li>🌍 <strong>Idioma:</strong> Definir el idioma de la página (`lang="es"`).</li>
+                 <li>🧠 <strong>Cognitivo:</strong> Navegación consistente (Menú siempre igual).</li>
+                 <li>📝 <strong>Formularios:</strong> Etiquetas claras y visibles, no solo placeholders.</li>
+              </ul>
             </div>
-            <div className="p-4 bg-white border border-gray-200 rounded shadow-sm">
-              <span className="text-indigo-600 font-black text-xl block mb-1">R</span>
-              <span className="font-bold text-gray-800">Robusto</span>
-              <p className="text-xs text-gray-500 mt-1">Compatible con tecnologías presentes y futuras (ej. lectores de pantalla).</p>
+
+            <div className="p-4 bg-white border-l-4 border-teal-500 rounded shadow-sm">
+              <div className="flex items-center mb-2">
+                 <span className="text-teal-600 font-black text-xl mr-2">R</span>
+                 <h4 className="font-bold text-gray-800">Robusto</h4>
+              </div>
+              <p className="text-xs text-gray-500 mb-3 border-b pb-2">"Funciona en diferentes tecnologías"</p>
+              <ul className="text-xs space-y-2 text-gray-700">
+                 <li>📱 <strong>Móvil:</strong> Funciona en pantallas verticales y horizontales.</li>
+                 <li>🗣️ <strong>Asistentes:</strong> Código HTML válido para que Siri/Alexa lo lean bien.</li>
+                 <li>🕸️ <strong>Compatibilidad:</strong> Se ve bien en Chrome, Firefox y Safari.</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -383,9 +518,9 @@ const Presentation = () => {
                   <h4 className="text-indigo-800 font-bold flex items-center mb-2">
                     <Sparkles size={16} className="mr-2 text-indigo-500" /> Respuesta de Gemini:
                   </h4>
-                  <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
+                  <ReactMarkdown>
                     {aiOutput}
-                  </div>
+                  </ReactMarkdown>
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3">
@@ -448,7 +583,7 @@ const Presentation = () => {
               </div>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-8">Profesor: Guillermo Mauro Marion López</p>
+          <p className="text-sm text-gray-500 mt-8">Guillermo Mauro Marion López | Ciclo Superior Desarrollo de Software</p>
         </div>
       )
     }
